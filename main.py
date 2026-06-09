@@ -55,9 +55,32 @@ def analyze_idea(idea: str, top_n: int = 10):
 
     all_reasons = [s['failure_reason'] for s in similar if s['failure_reason'] != 'Unknown']
     split_reasons = []
+
+    # Patterns to throw away — dates, acquisitions, short fragments
+    import re
+    noise_patterns = [
+        r'^\w+ \d{4}$',          # "Closed 2021", "Acquired 2019"
+        r'^\d{4}$',              # just a year
+        r'^(sold|acquired|closed|shut down|faded) \d{4}$',  # action + year
+    ]
+
+    def is_noise(text):
+        text = text.strip().lower()
+        if len(text) < 8:
+            return True
+        for pattern in noise_patterns:
+            if re.match(pattern, text, re.IGNORECASE):
+                return True
+        return False
+
     for r in all_reasons:
+        # Clean up escaped quotes
+        r = str(r).replace('\\"', '').replace('"', '')
         parts = str(r).replace(';', ',').split(',')
-        split_reasons.extend([p.strip() for p in parts if len(p.strip()) > 3])
+        for p in parts:
+            p = p.strip()
+            if p and not is_noise(p):
+                split_reasons.append(p)
 
     reason_counts = Counter(split_reasons)
     top_reasons = [reason for reason, count in reason_counts.most_common(3)]
